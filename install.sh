@@ -15,20 +15,18 @@ cat <<'EOF' > $SCRIPT_PATH
 
 # 🎨 Colores
 violeta="\e[1;35m"
+rosa="\e[95m"
 verde="\e[1;32m"
 rojo="\e[1;31m"
 azul="\e[1;34m"
 amarillo="\e[1;33m"
 cyan="\e[1;36m"
-neon="\e[95m"
 reset="\e[0m"
 
-# 🚀 Banner colorido
-echo -e "${violeta}"
-echo "╔══════════════════════════════╗"
-echo "      🚀  ${neon}MENU BURGOS${violeta} 🚀"
-echo "╚══════════════════════════════╝"
-echo -e "${reset}"
+# 🚀 Banner
+echo -e "${rosa}╔══════════════════════════════╗${reset}"
+echo -e "      🚀  ${violeta}MENU BURGOS${reset} 🚀"
+echo -e "${rosa}╚══════════════════════════════╝${reset}"
 echo
 
 # 🎨 Menú principal
