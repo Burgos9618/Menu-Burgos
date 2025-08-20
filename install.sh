@@ -18,6 +18,7 @@ violeta="\e[1;35m"
 verde="\e[1;32m"
 rojo="\e[1;31m"
 azul="\e[1;34m"
+amarillo="\e[1;33m"
 reset="\e[0m"
 
 # Banner compacto
@@ -42,25 +43,33 @@ case $opcion in
     read -p "Nombre de usuario: " usuario
     read -s -p "Contraseña: " clave
     echo
-    useradd -m -s /bin/bash "$usuario"
-    echo "$usuario:$clave" | chpasswd
-    echo -e "${azul}Usuario $usuario creado con éxito.${reset}"
+    if id "$usuario" &>/dev/null; then
+      echo -e "${rojo}❌ El usuario $usuario ya existe.${reset}"
+    else
+      useradd -m -s /bin/bash "$usuario"
+      echo "$usuario:$clave" | chpasswd
+      echo -e "${azul}✅ Usuario $usuario creado con éxito.${reset}"
+    fi
     ;;
   2)
     read -p "Usuario a eliminar: " usuario
-    userdel -r "$usuario"
-    echo -e "${rojo}Usuario $usuario eliminado.${reset}"
+    if id "$usuario" &>/dev/null; then
+      userdel -r "$usuario"
+      echo -e "${rojo}❌ Usuario $usuario eliminado.${reset}"
+    else
+      echo -e "${rojo}⚠️ El usuario $usuario no existe.${reset}"
+    fi
     ;;
   3)
-    echo -e "${azul}Usuarios SSH creados:${reset}"
-    awk -F: '$3 >= 1000 && $7 == "/bin/bash" {print $1}' /etc/passwd
+    echo -e "${verde}📋 Usuarios SSH creados:${reset}"
+    awk -F: '$3 >= 1000 && $7 == "/bin/bash" {print " - " $1}' /etc/passwd
     ;;
   0)
-    echo "Saliendo..."
+    echo -e "${amarillo}👋 Saliendo del menú...${reset}"
     exit 0
     ;;
   *)
-    echo "Opción no válida."
+    echo -e "${rojo}Opción no válida.${reset}"
     ;;
 esac
 EOF
@@ -76,11 +85,12 @@ chmod +x $INSTALL_PATH
 # Mensaje de bienvenida al conectarse por SSH
 MOTD_FILE="/etc/motd"
 cat <<'EOM' > $MOTD_FILE
-##############################################
-   🚀 Bienvenido al Servidor Burgos 🚀
-   Usa el comando: menu
+=============================================
+🚀 Bienvenido al Servidor Burgos 🚀
+
+👉 Usa el comando: menu
    para administrar usuarios SSH fácilmente
-##############################################
+=============================================
 EOM
 
 echo "✅ Instalación completada."
