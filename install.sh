@@ -1,6 +1,6 @@
 #!/bin/bash
 # Instalador Burgos Menu
-# Autor: Tú :)
+# Autor: Burgos :)
 
 # Ruta donde se instalará el menú
 INSTALL_PATH="/usr/local/bin/menu"
@@ -20,16 +20,12 @@ rojo="\e[1;31m"
 azul="\e[1;34m"
 reset="\e[0m"
 
-# Banner
+# Banner compacto
 echo -e "${violeta}"
-echo "██████╗ ██╗   ██╗██████╗  ██████╗  ██████╗ ███████╗"
-echo "██╔══██╗██║   ██║██╔══██╗██╔═══██╗██╔═══██╗██╔════╝"
-echo "██████╔╝██║   ██║██████╔╝██║   ██║██║   ██║███████╗"
-echo "██╔═══╝ ██║   ██║██╔═══╝ ██║   ██║██║   ██║╚════██║"
-echo "██║     ╚██████╔╝██║     ╚██████╔╝╚██████╔╝███████║"
-echo "╚═╝      ╚═════╝ ╚═╝      ╚═════╝  ╚═════╝ ╚══════╝"
+echo "╔══════════════════════╗"
+echo "   🚀  MENU BURGOS 🚀  "
+echo "╚══════════════════════╝"
 echo -e "${reset}"
-echo "              Menu Burgos"
 echo
 
 # Menú
@@ -56,8 +52,8 @@ case $opcion in
     echo -e "${rojo}Usuario $usuario eliminado.${reset}"
     ;;
   3)
-    echo -e "${azul}Usuarios existentes:${reset}"
-    cut -d: -f1 /etc/passwd
+    echo -e "${azul}Usuarios SSH creados:${reset}"
+    awk -F: '$3 >= 1000 && $7 == "/bin/bash" {print $1}' /etc/passwd
     ;;
   0)
     echo "Saliendo..."
@@ -76,6 +72,16 @@ chmod +x $SCRIPT_PATH
 echo "#!/bin/bash
 $SCRIPT_PATH" > $INSTALL_PATH
 chmod +x $INSTALL_PATH
+
+# Mensaje de bienvenida al conectarse por SSH
+MOTD_FILE="/etc/motd"
+cat <<'EOM' > $MOTD_FILE
+##############################################
+   🚀 Bienvenido al Servidor Burgos 🚀
+   Usa el comando: menu
+   para administrar usuarios SSH fácilmente
+##############################################
+EOM
 
 echo "✅ Instalación completada."
 echo "Escribe: menu"
