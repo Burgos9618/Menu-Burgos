@@ -30,14 +30,14 @@ echo "╚══════════════════════╝"
 echo -e "${reset}"
 echo
 
-# Menú
-echo -e "${verde}[1]${reset} Crear usuario SSH"
-echo -e "${verde}[2]${reset} Eliminar usuario SSH"
-echo -e "${verde}[3]${reset} Listar usuarios"
-echo -e "${verde}[0]${reset} Salir"
+# Menú con colores distintos
+echo -e "${amarillo}[1]${reset} Crear usuario SSH"
+echo -e "${rojo}[2]${reset} Eliminar usuario SSH"
+echo -e "${cyan}[3]${reset} Listar usuarios"
+echo -e "${violeta}[0]${reset} Salir"
 echo
 
-echo -ne "${cyan}Seleccione una opción: ${reset}"
+echo -ne "${verde}Seleccione una opción: ${reset}"
 read opcion
 
 case $opcion in
@@ -66,15 +66,15 @@ case $opcion in
     fi
     ;;
   3)
-    echo -e "${verde}📋 Usuarios SSH creados:${reset}"
+    echo -e "${cyan}📋 Usuarios SSH creados:${reset}"
     awk -F: '$3 >= 1000 && $7 == "/bin/bash" {print " - " $1}' /etc/passwd
     ;;
   0)
-    echo -e "${amarillo}👋 Saliendo del menú...${reset}"
+    echo -e "${violeta}👋 Saliendo del menú...${reset}"
     exit 0
     ;;
   *)
-    echo -e "${rojo}Opción no válida.${reset}"
+    echo -e "${rojo}⚠️ Opción no válida.${reset}"
     ;;
 esac
 EOF
