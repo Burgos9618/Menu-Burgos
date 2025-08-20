@@ -19,6 +19,7 @@ verde="\e[1;32m"
 rojo="\e[1;31m"
 azul="\e[1;34m"
 amarillo="\e[1;33m"
+cyan="\e[1;36m"
 reset="\e[0m"
 
 # Banner compacto
@@ -36,12 +37,15 @@ echo -e "${verde}[3]${reset} Listar usuarios"
 echo -e "${verde}[0]${reset} Salir"
 echo
 
-read -p "Seleccione una opción: " opcion
+echo -ne "${cyan}Seleccione una opción: ${reset}"
+read opcion
 
 case $opcion in
   1)
-    read -p "Nombre de usuario: " usuario
-    read -s -p "Contraseña: " clave
+    echo -ne "${amarillo}👤 Nombre de usuario:${reset} "
+    read usuario
+    echo -ne "${violeta}🔑 Contraseña:${reset} "
+    read -s clave
     echo
     if id "$usuario" &>/dev/null; then
       echo -e "${rojo}❌ El usuario $usuario ya existe.${reset}"
@@ -52,7 +56,8 @@ case $opcion in
     fi
     ;;
   2)
-    read -p "Usuario a eliminar: " usuario
+    echo -ne "${amarillo}🗑️ Usuario a eliminar:${reset} "
+    read usuario
     if id "$usuario" &>/dev/null; then
       userdel -r "$usuario"
       echo -e "${rojo}❌ Usuario $usuario eliminado.${reset}"
