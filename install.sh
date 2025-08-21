@@ -1,3 +1,4 @@
+
 #!/bin/bash
 # Instalador Burgos Menu actualizado
 # Autor: Burgos 🚀
@@ -9,7 +10,7 @@ MOTD_FILE="/etc/motd"
 # ================================
 # Crear script principal (menu)
 # ================================
-cat << 'EOF' > $SCRIPT_PATH
+cat <<'EOF' > $SCRIPT_PATH
 #!/bin/bash
 # ==========================
 #      BURGOS MENU
@@ -44,22 +45,28 @@ read -p "Seleccione una opción: " opcion
 case $opcion in
   1)
     echo -e "${cyan}➤ Creando usuario...${reset}"
-    read -p "Nombre de usuario: " usuario
-    read -s -p "Contraseña: " clave
+    read -p "$(echo -e ${amarillo}Nombre de usuario:${reset} ) " usuario
+    read -s -p "$(echo -e ${verde}Contraseña:${reset} ) " clave
     echo
     useradd -m -s /bin/bash "$usuario"
     echo "$usuario:$clave" | chpasswd
+    echo "$usuario" >> /etc/burgos_users.txt
     echo -e "${verde}✔ Usuario $usuario creado con éxito.${reset}"
     ;;
   2)
     echo -e "${amarillo}➤ Eliminando usuario...${reset}"
-    read -p "Usuario a eliminar: " usuario
+    read -p "$(echo -e ${rojo}Usuario a eliminar:${reset} ) " usuario
     userdel -r "$usuario"
+    sed -i "/^$usuario$/d" /etc/burgos_users.txt
     echo -e "${rojo}✘ Usuario $usuario eliminado.${reset}"
     ;;
   3)
-    echo -e "${azul}➤ Usuarios existentes:${reset}"
-    cut -d: -f1 /etc/passwd | less
+    echo -e "${azul}➤ Usuarios creados con el menú:${reset}"
+    if [[ -f /etc/burgos_users.txt ]]; then
+      cat /etc/burgos_users.txt
+    else
+      echo -e "${rojo}No hay usuarios registrados.${reset}"
+    fi
     ;;
   4)
     echo -e "${rojo}Reiniciando VPS...${reset}"
@@ -81,7 +88,6 @@ case $opcion in
 esac
 EOF
 
-# Dar permisos
 chmod +x $SCRIPT_PATH
 
 # ================================
@@ -94,7 +100,7 @@ chmod +x $INSTALL_PATH
 # ================================
 # Configurar mensaje de bienvenida MOTD
 # ================================
-cat << 'EOM' > $MOTD_FILE
+cat <<'EOM' > $MOTD_FILE
 [95m╔══════════════════════════════╗[0m
 [95m   🚀  Bienvenido a VPS BURGOS 🚀[0m
 [95m╚══════════════════════════════╝[0m
@@ -109,4 +115,3 @@ if ! grep -q "menu" /root/.bashrc; then
 fi
 
 echo "✅ Instalación completada."
-
