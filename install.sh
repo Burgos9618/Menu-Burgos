@@ -17,17 +17,17 @@ echo "============================================"
 apt-get update -y && apt-get upgrade -y
 apt-get install -y dropbear stunnel4 net-tools ufw curl git gawk screen
 
-# 2. Configurar SSH (22 como default y 444 adicional)
+# 2. Configurar SSH (22 por defecto y 444 adicional)
 echo "➤ Configurando SSH..."
 grep -q "^Port 22" /etc/ssh/sshd_config || echo "Port 22" >> /etc/ssh/sshd_config
 grep -q "^Port 444" /etc/ssh/sshd_config || echo "Port 444" >> /etc/ssh/sshd_config
 systemctl restart ssh
 
-# 3. Configurar Stunnel (SSL→SSH)
+# 3. Configurar Stunnel (SSL → SSH)
 echo "➤ Configurando Stunnel..."
 mkdir -p /etc/stunnel
 
-# Generar certificado si no existe
+# Generar certificado SSL si no existe
 if [ ! -f /etc/stunnel/stunnel.pem ]; then
   openssl req -new -x509 -days 365 -nodes \
     -subj "/CN=burgos-vps" \
@@ -35,7 +35,7 @@ if [ ! -f /etc/stunnel/stunnel.pem ]; then
   chmod 600 /etc/stunnel/stunnel.pem
 fi
 
-# Crear stunnel.conf
+# Crear configuración de stunnel
 cat > /etc/stunnel/stunnel.conf <<EOF
 pid = /var/run/stunnel4/stunnel.pid
 cert = /etc/stunnel/stunnel.pem
@@ -47,7 +47,7 @@ socket = l:TCP_NODELAY=1
 socket = r:TCP_NODELAY=1
 EOF
 
-# Agregar servicios SSL
+# Agregar los puertos SSL configurados
 for port in "${DEFAULT_SSL_PORTS[@]}"; do
   cat >> /etc/stunnel/stunnel.conf <<EOF
 
@@ -57,18 +57,18 @@ connect = 22
 EOF
 done
 
-# Habilitar stunnel4
+# Habilitar y reiniciar stunnel
 sed -i 's/ENABLED=0/ENABLED=1/' /etc/default/stunnel4
 systemctl enable stunnel4 >/dev/null 2>&1
 systemctl restart stunnel4
 
-# 4. Configurar firewall
+# 4. Configurar firewall UFW
 echo "➤ Configurando firewall (UFW)..."
 ufw allow 22/tcp
 ufw allow 444/tcp
-ufw allow 443/tcp
-ufw allow 445/tcp
-ufw allow 446/tcp
+for port in "${DEFAULT_SSL_PORTS[@]}"; do
+  ufw allow ${port}/tcp
+done
 ufw --force enable
 
 # 5. MOTD personalizado
@@ -79,7 +79,7 @@ cat > "$MOTD_FILE" <<'EOM'
 ============================================
 EOM
 
-# 6. Crear menú administrador
+# 6. Crear menú de administración básico
 cat > "$SCRIPT_PATH" <<'EOF'
 #!/bin/bash
 
@@ -91,8 +91,8 @@ echo "===== MENÚ ADMINISTRACIÓN VPS ====="
 echo "1) Crear usuario SSH"
 echo "2) Eliminar usuario SSH"
 echo "3) Listar usuarios SSH"
-echo "4) Mostrar conexiones activas"
-echo "0) Salir"
+echo "4) Ver conexiones activas"
+echo "5) Salir"
 echo "===================================="
 read -p "Opción: " op
 
@@ -119,20 +119,24 @@ case "$op" in
     echo "Conexiones activas:"
     netstat -tnpa | grep 'ESTABLISHED.*sshd'
     ;;
-  0) exit ;;
-  *) echo "Opción inválida" ;;
+  5)
+    exit 0
+    ;;
+  *)
+    echo "Opción inválida"
+    ;;
 esac
 EOF
 
 chmod +x "$SCRIPT_PATH"
 ln -sf "$SCRIPT_PATH" "$INSTALL_PATH"
 
-# 7. Autoejecutar el menú al iniciar sesión root
+# 7. Ejecutar menú automáticamente al entrar como root
 grep -qxF "$INSTALL_PATH" /root/.bashrc || echo "$INSTALL_PATH" >> /root/.bashrc
 
 echo "============================================"
 echo " ✅ Instalación completada"
-echo " Ejecuta el menú con: menu"
+echo " Usa el comando: menu"
 echo " Puertos SSH: 22, 444"
-echo " Puertos SSL: 443, 445, 446"
+echo " Puertos SSL: ${DEFAULT_SSL_PORTS[*]}"
 echo "============================================"
