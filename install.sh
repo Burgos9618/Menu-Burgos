@@ -1,6 +1,6 @@
 #!/bin/bash
-# Instalador Burgos Menu actualizado
-# Autor: Burgos 🚀
+# Instalador Menu Burgos 🚀
+# Autor: Burgos & ChatGPT
 
 INSTALL_PATH="/usr/local/bin/menu"
 SCRIPT_PATH="/usr/local/bin/menu_admin.sh"
@@ -11,11 +11,8 @@ MOTD_FILE="/etc/motd"
 # ================================
 cat <<'EOF' > $SCRIPT_PATH
 #!/bin/bash
-# ==========================
-#      BURGOS MENU
-# ==========================
 
-# Colores
+# 🎨 Colores
 violeta="\e[1;35m"
 verde="\e[1;32m"
 rojo="\e[1;31m"
@@ -24,62 +21,172 @@ cyan="\e[1;36m"
 amarillo="\e[1;33m"
 reset="\e[0m"
 
-# Banner
-echo -e "${violeta}╔══════════════════════════════════════════╗${reset}"
-echo -e "${violeta}      🚀  Ningun Sistema Es Seguro 🚀       ${reset}"
-echo -e "${violeta}╚══════════════════════════════════════════╝${reset}"
-echo
+# Función para pausar
+pausa() {
+  echo -e "\n${amarillo}Presiona ENTER para continuar...${reset}"
+  read
+}
 
-# Menú con colores diferentes
-echo -e "${cyan}[1] Crear usuario SSH${reset}"
-echo -e "${amarillo}[2] Eliminar usuario SSH${reset}"
-echo -e "${azul}[3] Lista de usuarios SSH${reset}"
-echo -e "${rojo}[4] Reiniciar VPS${reset}"
-echo -e "${verde}[5] Estado del sistema${reset}"
-echo -e "${violeta}[0] Salir${reset}"
-echo
-
-read -p "Seleccione una opción: " opcion
-
-case $opcion in
-  1)
-    echo -e "${cyan}➤ Creando usuario...${reset}"
-    read -p "Nombre de usuario: " usuario
-    read -s -p "Contraseña: " clave
+# ================================
+# Submenú: Gestión de Usuarios SSH
+# ================================
+usuarios_menu() {
+  while true; do
+    clear
+    echo -e "${violeta}╔══════════════════════════════╗${reset}"
+    echo -e "${violeta}   🔑 Gestión de Usuarios SSH   ${reset}"
+    echo -e "${violeta}╚══════════════════════════════╝${reset}"
+    echo -e "${cyan}[1] ➤ Crear usuario${reset}"
+    echo -e "${amarillo}[2] ➤ Eliminar usuario${reset}"
+    echo -e "${azul}[3] ➤ Editar usuario${reset}"
+    echo -e "${verde}[4] ➤ Renovar usuario${reset}"
+    echo -e "${rojo}[5] ➤ Eliminar usuarios caducados${reset}"
+    echo -e "${violeta}[0] ⬅ Volver al menú principal${reset}"
     echo
-    read -p "Días de validez: " dias
-    useradd -m -s /bin/bash -e $(date -d "+$dias days" +"%Y-%m-%d") "$usuario"
-    echo "$usuario:$clave" | chpasswd
-    echo -e "${verde}✔ Usuario $usuario creado con éxito. Expira en $dias días.${reset}"
-    ;;
-  2)
-    echo -e "${amarillo}➤ Eliminando usuario...${reset}"
-    read -p "Usuario a eliminar: " usuario
-    userdel -r "$usuario"
-    echo -e "${rojo}✘ Usuario $usuario eliminado.${reset}"
-    ;;
-  3)
-    echo -e "${azul}➤ Lista de usuarios SSH:${reset}"
-    awk -F: '$3>=1000 && $1!="nobody"{print $1}' /etc/passwd
-    ;;
-  4)
-    echo -e "${rojo}Reiniciando VPS...${reset}"
-    reboot
-    ;;
-  5)
-    echo -e "${verde}➤ Estado del sistema:${reset}"
-    uptime
-    free -h
-    df -h
-    ;;
-  0)
-    echo -e "${violeta}👋 Saliendo del menú...${reset}"
-    exit 0
-    ;;
-  *)
-    echo -e "${rojo}⚠ Opción no válida.${reset}"
-    ;;
-esac
+    read -p "Seleccione una opción: " op
+    case $op in
+      1) echo -e "${cyan}➤ Creando usuario...${reset}"
+         read -p "Usuario: " usuario
+         read -s -p "Contraseña: " clave
+         echo; read -p "Días válidos: " dias
+         expira=$(date -d "+$dias days" +%Y-%m-%d)
+         useradd -m -e $expira -s /bin/bash $usuario
+         echo "$usuario:$clave" | chpasswd
+         echo -e "${verde}✔ Usuario $usuario creado hasta $expira.${reset}"
+         pausa ;;
+      2) read -p "Usuario a eliminar: " usuario
+         userdel -r $usuario
+         echo -e "${rojo}✘ Usuario $usuario eliminado.${reset}"
+         pausa ;;
+      3) read -p "Usuario a editar: " usuario
+         read -s -p "Nueva contraseña: " clave
+         echo; echo "$usuario:$clave" | chpasswd
+         echo -e "${verde}✔ Contraseña de $usuario actualizada.${reset}"
+         pausa ;;
+      4) read -p "Usuario a renovar: " usuario
+         read -p "Días adicionales: " dias
+         chage -E $(date -d "+$dias days" +%Y-%m-%d) $usuario
+         echo -e "${verde}✔ Usuario $usuario renovado.${reset}"
+         pausa ;;
+      5) echo -e "${rojo}➤ Eliminando usuarios caducados...${reset}"
+         for u in $(awk -F: '{print $1}' /etc/passwd); do
+           exp=$(chage -l $u | grep "Account expires" | awk -F": " '{print $2}')
+           if [[ $exp != "never" && $(date -d "$exp" +%s) -lt $(date +%s) ]]; then
+             userdel -r $u
+             echo -e "${rojo}✘ $u eliminado por caducidad.${reset}"
+           fi
+         done
+         pausa ;;
+      0) break ;;
+      *) echo -e "${rojo}⚠ Opción inválida.${reset}"; pausa ;;
+    esac
+  done
+}
+
+# ================================
+# Submenú: Gestión de Puertos
+# ================================
+puertos_menu() {
+  while true; do
+    clear
+    echo -e "${azul}╔══════════════════════════════╗${reset}"
+    echo -e "${azul}   ⚙️  Gestión de Puertos VPS   ${reset}"
+    echo -e "${azul}╚══════════════════════════════╝${reset}"
+    echo -e "${cyan}[1] ➤ Ver puertos en uso${reset}"
+    echo -e "${amarillo}[2] ➤ Cambiar puerto SSH${reset}"
+    echo -e "${verde}[3] ➤ Configurar Dropbear${reset}"
+    echo -e "${violeta}[4] ➤ Configurar Stunnel${reset}"
+    echo -e "${rojo}[0] ⬅ Volver al menú principal${reset}"
+    echo
+    read -p "Seleccione una opción: " op
+    case $op in
+      1) ss -tuln
+         pausa ;;
+      2) read -p "Nuevo puerto SSH: " port
+         sed -i "s/^#Port .*/Port $port/" /etc/ssh/sshd_config
+         systemctl restart sshd
+         echo -e "${verde}✔ Puerto SSH cambiado a $port.${reset}"
+         pausa ;;
+      3) echo -e "${amarillo}➤ Configuración básica Dropbear...${reset}"
+         apt-get install -y dropbear
+         systemctl enable dropbear
+         systemctl restart dropbear
+         echo -e "${verde}✔ Dropbear instalado y corriendo.${reset}"
+         pausa ;;
+      4) echo -e "${violeta}➤ Configuración básica Stunnel...${reset}"
+         apt-get install -y stunnel4
+         systemctl enable stunnel4
+         echo -e "${verde}✔ Stunnel instalado.${reset}"
+         pausa ;;
+      0) break ;;
+      *) echo -e "${rojo}⚠ Opción inválida.${reset}"; pausa ;;
+    esac
+  done
+}
+
+# ================================
+# Submenú: Estado del sistema
+# ================================
+sistema_menu() {
+  clear
+  echo -e "${verde}╔══════════════════════════════╗${reset}"
+  echo -e "${verde}     📊 Estado del sistema     ${reset}"
+  echo -e "${verde}╚══════════════════════════════╝${reset}"
+  uptime
+  free -h
+  df -h
+  pausa
+}
+
+# ================================
+# Submenú: Reinicios y extras
+# ================================
+extras_menu() {
+  while true; do
+    clear
+    echo -e "${amarillo}╔══════════════════════════════╗${reset}"
+    echo -e "${amarillo}   🔄 Reinicios y Utilidades   ${reset}"
+    echo -e "${amarillo}╚══════════════════════════════╝${reset}"
+    echo -e "${cyan}[1]${reset} ➤ Reiniciar VPS"
+    echo -e "${verde}[2]${reset} ➤ Reiniciar servicios"
+    echo -e "${rojo}[0]${reset} ⬅ Volver al menú principal"
+    echo
+    read -p "Seleccione una opción: " op
+    case $op in
+      1) reboot ;;
+      2) systemctl restart sshd dropbear stunnel4
+         echo -e "${verde}✔ Servicios reiniciados.${reset}"
+         pausa ;;
+      0) break ;;
+      *) echo -e "${rojo}⚠ Opción inválida.${reset}"; pausa ;;
+    esac
+  done
+}
+
+# ================================
+# Menú principal
+# ================================
+while true; do
+  clear
+  echo -e "${violeta}╔══════════════════════════════════════════╗${reset}"
+  echo -e "${violeta}      🚀   MENÚ ADMINISTRADOR VPS BURGOS   🚀${reset}"
+  echo -e "${violeta}╚══════════════════════════════════════════╝${reset}"
+  echo -e "${cyan}[1]${reset} 🔑 Gestión de Usuarios"
+  echo -e "${amarillo}[2]${reset} ⚙️  Gestión de Puertos"
+  echo -e "${verde}[3]${reset} 📊 Estado del sistema"
+  echo -e "${rojo}[4]${reset} 🔄 Reinicios y extras"
+  echo -e "${violeta}[0]${reset} ❌ Salir"
+  echo
+  read -p "Seleccione una opción: " opcion
+  case $opcion in
+    1) usuarios_menu ;;
+    2) puertos_menu ;;
+    3) sistema_menu ;;
+    4) extras_menu ;;
+    0) exit 0 ;;
+    *) echo -e "${rojo}⚠ Opción inválida.${reset}"; pausa ;;
+  esac
+done
 EOF
 
 chmod +x $SCRIPT_PATH
@@ -92,7 +199,7 @@ $SCRIPT_PATH" > $INSTALL_PATH
 chmod +x $INSTALL_PATH
 
 # ================================
-# Configurar mensaje de bienvenida MOTD
+# Configurar mensaje MOTD
 # ================================
 cat <<'EOM' > $MOTD_FILE
 [95m╔══════════════════════════════╗[0m
@@ -102,15 +209,8 @@ cat <<'EOM' > $MOTD_FILE
 EOM
 
 # ================================
-# Hacer que el menú se ejecute al entrar
+# Autoejecutar menú al entrar
 # ================================
-if ! grep -q "menu" /root/.bashrc; then
-    echo "menu" >> /root/.bashrc
-fi
+echo "menu" >> /root/.bashrc
 
-# ================================
-# Mensaje final
-# ================================
-echo -e "\e[1;32m✅ Instalación completada con éxito.\e[0m"
-echo -e "\e[1;36mPara volver a instalar o actualizar usa:\e[0m"
-echo -e "\e[1;35mbash <(curl -s https://raw.githubusercontent.com/Burgos9618/Menu-Burgos/main/install.sh)\e[0m"
+echo "✅ Instalación completada. Ejecuta 'menu' para iniciar."
