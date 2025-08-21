@@ -41,7 +41,7 @@ usuarios_menu() {
     echo -e "${azul}[3]${reset} ➤ ${azul}Editar usuario${reset}"
     echo -e "${verde}[4]${reset} ➤ ${verde}Renovar usuario${reset}"
     echo -e "${rojo}[5]${reset} ➤ ${rojo}Eliminar usuarios caducados${reset}"
-    echo -e "${violeta}[0]${reset} ⬅ $¨{violeta}Volver al menú principal${reset}"
+    echo -e "${violeta}[0]${reset} ⬅ ${violeta}Volver al menú principal${reset}"
     echo
     read -p "Seleccione una opción: " op
     case $op in
