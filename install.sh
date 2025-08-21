@@ -1,135 +1,87 @@
 #!/bin/bash
-# ============================================
-# VPS BURGOS - Menu con SSH + SSL (Stunnel)
-# ============================================
+# ==============================================
+#   Install.sh - Instalador VPS Burgos 🚀
+#   Configura: SSH, SSL (stunnel), UFW y el menú
+# ==============================================
 
-# ====== COLORES ======
-verde="\e[1;32m"
-rojo="\e[1;31m"
-amarillo="\e[1;33m"
-cyan="\e[1;36m"
-morado="\e[1;35m"
-reset="\e[0m"
+INSTALL_PATH="/usr/local/bin/menu"
+SCRIPT_PATH="/usr/local/bin/menu_admin.sh"
+MOTD_FILE="/etc/motd"
 
-# ====== BANNER ======
-banner() {
-    clear
-    echo -e "${cyan}══════════════════════════════════════${reset}"
-    echo -e "     ${morado}⚡ BIENVENIDO A VPS BURGOS ⚡${reset}"
-    echo -e "${cyan}══════════════════════════════════════${reset}"
-}
+echo "============================================"
+echo " 🚀 Instalador VPS Burgos"
+echo "============================================"
 
-# ====== INSTALACION DE PAQUETES ======
-instalar_dependencias() {
-    apt update -y
-    apt install -y sudo curl wget unzip socat net-tools
-    apt install -y stunnel4
-}
+# ----------------------------------------------
+# 1. Actualizar sistema e instalar dependencias
+# ----------------------------------------------
+apt-get update -y && apt-get upgrade -y
+apt-get install -y dropbear stunnel4 net-tools ufw curl git
 
-# ====== CONFIGURACION STUNNEL ======
-configurar_stunnel() {
-    cat > /etc/stunnel/stunnel.conf <<EOF
-pid = /var/run/stunnel.pid
-cert = /etc/stunnel/stunnel.pem
+# ----------------------------------------------
+# 2. Configurar SSH (22 y 444)
+# ----------------------------------------------
+echo "➤ Configurando SSH..."
+sed -i '/^Port /d' /etc/ssh/sshd_config
+echo "Port 22" >> /etc/ssh/sshd_config
+echo "Port 444" >> /etc/ssh/sshd_config
+systemctl restart sshd
+
+# ----------------------------------------------
+# 3. Configurar Stunnel (443 → 22)
+# ----------------------------------------------
+echo "➤ Configurando Stunnel..."
+cat > /etc/stunnel/stunnel.conf <<EOF
 client = no
-
-[ssh_444]
-accept = 444
-connect = 127.0.0.1:22
+[ssh]
+accept = 443
+connect = 22
+cert = /etc/stunnel/stunnel.pem
 EOF
 
-    # Crear certificado autofirmado
-    openssl req -new -x509 -days 365 -nodes -out /etc/stunnel/stunnel.pem -keyout /etc/stunnel/stunnel.pem \
-        -subj "/C=US/ST=Denial/L=Springfield/O=Dis/CN=vps-burgos"
-    chmod 600 /etc/stunnel/stunnel.pem
+# Crear certificado autofirmado
+openssl req -new -x509 -days 365 -nodes -out /etc/stunnel/stunnel.pem -keyout /etc/stunnel/stunnel.pem -subj "/CN=VPSBurgos"
+chmod 600 /etc/stunnel/stunnel.pem
 
-    systemctl enable stunnel4
-    systemctl restart stunnel4
-}
+# Activar stunnel
+sed -i 's/ENABLED=0/ENABLED=1/' /etc/default/stunnel4
+systemctl restart stunnel4
 
-# ====== LISTAR USUARIOS SSH ======
-listar_usuarios() {
-    clear
-    echo -e "${cyan}══════════════════════════════════════${reset}"
-    echo -e "       ${verde}👤 LISTA DE USUARIOS SSH ACTIVOS${reset}"
-    echo -e "${cyan}══════════════════════════════════════${reset}"
+# ----------------------------------------------
+# 4. Configurar Firewall (UFW)
+# ----------------------------------------------
+echo "➤ Configurando UFW..."
+ufw allow 22/tcp
+ufw allow 444/tcp
+ufw allow 443/tcp
+ufw --force enable
 
-    awk -F: '$3 >= 1000 && $1 != "nobody" {print $1}' /etc/passwd
+# ----------------------------------------------
+# 5. Banner de bienvenida (MOTD)
+# ----------------------------------------------
+echo "➤ Configurando mensaje de bienvenida..."
+cat > $MOTD_FILE <<'EOM'
 
-    echo -e "${cyan}══════════════════════════════════════${reset}"
-    read -p "Presiona Enter para volver al menú..."
-}
+Bienvenido a tu VPS ⚡️ by Burgos 🚀
 
-# ====== GESTION DE PUERTOS SSL ======
-gestionar_ssl() {
-    while true; do
-        clear
-        echo -e "${cyan}══════════════════════════════════════${reset}"
-        echo -e "      ${verde}⚡ GESTIONAR PUERTOS SSL (Stunnel) ⚡${reset}"
-        echo -e "${cyan}══════════════════════════════════════${reset}"
-        echo -e "${amarillo}1)${reset} Listar puertos SSL activos"
-        echo -e "${amarillo}2)${reset} Agregar puerto SSL"
-        echo -e "${amarillo}3)${reset} Eliminar puerto SSL"
-        echo -e "${rojo}0)${reset} Volver al menú principal"
-        echo -e "${cyan}══════════════════════════════════════${reset}"
-        read -p "Elige una opción: " opcion_ssl
+EOM
 
-        case $opcion_ssl in
-            1)
-                echo -e "${verde}[INFO] Puertos SSL activos:${reset}"
-                grep "accept" /etc/stunnel/stunnel.conf | awk '{print $3}'
-                read -p "Presiona Enter para continuar..."
-                ;;
-            2)
-                read -p "Ingresa el nuevo puerto SSL: " nuevo_puerto
-                if grep -q "accept = $nuevo_puerto" /etc/stunnel/stunnel.conf; then
-                    echo -e "${rojo}[ERROR] El puerto $nuevo_puerto ya existe.${reset}"
-                else
-                    echo -e "\n[ssh_$nuevo_puerto]" >> /etc/stunnel/stunnel.conf
-                    echo "accept = $nuevo_puerto" >> /etc/stunnel/stunnel.conf
-                    echo "connect = 127.0.0.1:22" >> /etc/stunnel/stunnel.conf
-                    systemctl restart stunnel4
-                    echo -e "${verde}[OK] Puerto $nuevo_puerto agregado y stunnel reiniciado.${reset}"
-                fi
-                read -p "Presiona Enter para continuar..."
-                ;;
-            3)
-                read -p "Ingresa el puerto SSL a eliminar: " puerto_del
-                if grep -q "accept = $puerto_del" /etc/stunnel/stunnel.conf; then
-                    sed -i "/\[ssh_$puerto_del\]/,/connect = 127.0.0.1:22/d" /etc/stunnel/stunnel.conf
-                    systemctl restart stunnel4
-                    echo -e "${verde}[OK] Puerto $puerto_del eliminado.${reset}"
-                else
-                    echo -e "${rojo}[ERROR] El puerto $puerto_del no está configurado.${reset}"
-                fi
-                read -p "Presiona Enter para continuar..."
-                ;;
-            0) break ;;
-            *) echo -e "${rojo}[ERROR] Opción inválida.${reset}" ;;
-        esac
-    done
-}
+# ----------------------------------------------
+# 6. Descargar menú Burgos desde GitHub
+# ----------------------------------------------
+echo "➤ Instalando menú Burgos..."
+wget -O $SCRIPT_PATH https://raw.githubusercontent.com/Burgos9618/Menu-Burgos/main/menu.sh
+chmod +x $SCRIPT_PATH
+ln -sf $SCRIPT_PATH $INSTALL_PATH
 
-# ====== MENU PRINCIPAL ======
-menu_principal() {
-    while true; do
-        banner
-        echo -e "${amarillo}1)${reset} Lista de usuarios SSH"
-        echo -e "${amarillo}2)${reset} Gestionar puertos SSL (Stunnel)"
-        echo -e "${rojo}0)${reset} Salir"
-        echo -e "${cyan}══════════════════════════════════════${reset}"
-        read -p "Elige una opción: " opcion
+# ----------------------------------------------
+# 7. Autoinicio del menú al entrar por SSH
+# ----------------------------------------------
+if ! grep -q "$INSTALL_PATH" ~/.bashrc; then
+    echo "$INSTALL_PATH" >> ~/.bashrc
+fi
 
-        case $opcion in
-            1) listar_usuarios ;;
-            2) gestionar_ssl ;;
-            0) exit 0 ;;
-            *) echo -e "${rojo}[ERROR] Opción inválida.${reset}" ;;
-        esac
-    done
-}
-
-# ====== EJECUCION ======
-instalar_dependencias
-configurar_stunnel
-menu_principal
+echo "============================================"
+echo " ✅ Instalación completada"
+echo " Ejecuta el menú con: menu"
+echo "============================================"
