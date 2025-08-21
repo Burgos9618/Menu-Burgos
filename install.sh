@@ -1,5 +1,5 @@
 #!/bin/bash
-# Instalador Burgos Menu actualizado
+# Instalador Burgos Menu FINAL
 # Autor: Burgos & ChatGPT 🚀
 
 INSTALL_PATH="/usr/local/bin/menu"
@@ -26,7 +26,7 @@ reset="\e[0m"
 
 # Banner
 echo -e "${violeta}╔══════════════════════════════════════════╗${reset}"
-echo -e "${violeta}      🚀  Ningun Sistema Es Seguro 🚀       ${reset}"
+echo -e "${violeta}      🚀  Ningún Sistema Es Seguro 🚀       ${reset}"
 echo -e "${violeta}╚══════════════════════════════════════════╝${reset}"
 echo
 
@@ -45,4 +45,66 @@ case $opcion in
   1)
     echo -e "${cyan}➤ Creando usuario...${reset}"
     read -p "Nombre de usuario: " usuario
+    read -s -p "Contraseña: " clave
+    echo
+    useradd -m -s /bin/bash "$usuario"
+    echo "$usuario:$clave" | chpasswd
+    echo -e "${verde}✔ Usuario $usuario creado con éxito.${reset}"
+    ;;
+  2)
+    echo -e "${amarillo}➤ Eliminando usuario...${reset}"
+    read -p "Usuario a eliminar: " usuario
+    userdel -r "$usuario"
+    echo -e "${rojo}✘ Usuario $usuario eliminado.${reset}"
+    ;;
+  3)
+    echo -e "${azul}➤ Usuarios existentes:${reset}"
+    cut -d: -f1 /etc/passwd | less
+    ;;
+  4)
+    echo -e "${rojo}Reiniciando VPS...${reset}"
+    reboot
+    ;;
+  5)
+    echo -e "${verde}➤ Estado del sistema:${reset}"
+    uptime
+    free -h
+    df -h
+    ;;
+  0)
+    echo -e "${violeta}👋 Saliendo del menú...${reset}"
+    exit 0
+    ;;
+  *)
+    echo -e "${rojo}⚠ Opción no válida.${reset}"
+    ;;
+esac
+EOF
 
+chmod +x $SCRIPT_PATH
+
+# ================================
+# Crear acceso global "menu"
+# ================================
+echo "#!/bin/bash
+$SCRIPT_PATH" > $INSTALL_PATH
+chmod +x $INSTALL_PATH
+
+# ================================
+# Configurar mensaje de bienvenida MOTD
+# ================================
+cat <<'EOM' > $MOTD_FILE
+[95m╔══════════════════════════════╗[0m
+[95m   🚀  Bienvenido a VPS BURGOS 🚀[0m
+[95m╚══════════════════════════════╝[0m
+ Soporte: [96m@Escanor_Sama18[0m
+EOM
+
+# ================================
+# Hacer que el menú se ejecute al entrar
+# ================================
+if ! grep -q "menu" /root/.bashrc; then
+    echo "menu" >> /root/.bashrc
+fi
+
+echo "✅ Instalación completada. Reinicia tu sesión para ver el menú."
