@@ -1,6 +1,6 @@
 #!/bin/bash
-# Instalador Burgos Menu FINAL
-# Autor: Burgos & ChatGPT 🚀
+# Instalador Burgos Menu actualizado
+# Autor: Burgos 🚀
 
 INSTALL_PATH="/usr/local/bin/menu"
 SCRIPT_PATH="/usr/local/bin/menu_admin.sh"
@@ -9,7 +9,7 @@ MOTD_FILE="/etc/motd"
 # ================================
 # Crear script principal (menu)
 # ================================
-cat <<'EOF' > $SCRIPT_PATH
+cat << 'EOF' > $SCRIPT_PATH
 #!/bin/bash
 # ==========================
 #      BURGOS MENU
@@ -26,7 +26,7 @@ reset="\e[0m"
 
 # Banner
 echo -e "${violeta}╔══════════════════════════════════════════╗${reset}"
-echo -e "${violeta}      🚀  Ningún Sistema Es Seguro 🚀       ${reset}"
+echo -e "${violeta}      🚀  Ningun Sistema Es Seguro 🚀       ${reset}"
 echo -e "${violeta}╚══════════════════════════════════════════╝${reset}"
 echo
 
@@ -81,6 +81,7 @@ case $opcion in
 esac
 EOF
 
+# Dar permisos
 chmod +x $SCRIPT_PATH
 
 # ================================
@@ -93,7 +94,7 @@ chmod +x $INSTALL_PATH
 # ================================
 # Configurar mensaje de bienvenida MOTD
 # ================================
-cat <<'EOM' > $MOTD_FILE
+cat << 'EOM' > $MOTD_FILE
 [95m╔══════════════════════════════╗[0m
 [95m   🚀  Bienvenido a VPS BURGOS 🚀[0m
 [95m╚══════════════════════════════╝[0m
@@ -104,7 +105,8 @@ EOM
 # Hacer que el menú se ejecute al entrar
 # ================================
 if ! grep -q "menu" /root/.bashrc; then
-    echo "menu" >> /root/.bashrc
+  echo "menu" >> /root/.bashrc
 fi
 
-echo "✅ Instalación completada. Reinicia tu sesión para ver el menú."
+echo "✅ Instalación completada."
+
