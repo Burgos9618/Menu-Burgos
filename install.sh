@@ -1,102 +1,110 @@
 #!/bin/bash
-# Instalador Burgos Menu Full Color
-# Autor: Burgos :)
+# Instalador Burgos Menu actualizado
+# Autor: Burgos & ChatGPT 🚀
 
-# Ruta donde se instalará el menú
 INSTALL_PATH="/usr/local/bin/menu"
 SCRIPT_PATH="/usr/local/bin/menu_admin.sh"
+MOTD_FILE="/etc/motd"
 
-# Crear script principal
+# ================================
+# Crear script principal (menu)
+# ================================
 cat <<'EOF' > $SCRIPT_PATH
 #!/bin/bash
 # ==========================
 #      BURGOS MENU
 # ==========================
 
-# 🎨 Colores
+# Colores
 violeta="\e[1;35m"
-rosa="\e[95m"
 verde="\e[1;32m"
 rojo="\e[1;31m"
 azul="\e[1;34m"
-amarillo="\e[1;33m"
 cyan="\e[1;36m"
+amarillo="\e[1;33m"
 reset="\e[0m"
 
-# 🚀 Banner
-echo -e "${rosa}╔══════════════════════════════╗${reset}"
-echo -e "      🚀  ${violeta}MENU BURGOS${reset} 🚀"
-echo -e "${rosa}╚══════════════════════════════╝${reset}"
+# Banner
+echo -e "${violeta}╔══════════════════════════════════════════╗${reset}"
+echo -e "${violeta}      🚀  Ningun Sistema Es Seguro 🚀       ${reset}"
+echo -e "${violeta}╚══════════════════════════════════════════╝${reset}"
 echo
 
-# 🎨 Menú principal
-echo -e "${amarillo}[1] 👤 Crear usuario SSH${reset}"
-echo -e "${rojo}[2] 🗑️  Eliminar usuario SSH${reset}"
-echo -e "${cyan}[3] 📋 Listar usuarios${reset}"
-echo -e "${violeta}[0] 🚪 Salir${reset}"
+# Menú con colores diferentes
+echo -e "${cyan}[1]${reset} Crear usuario SSH"
+echo -e "${amarillo}[2]${reset} Eliminar usuario SSH"
+echo -e "${azul}[3]${reset} Listar usuarios"
+echo -e "${rojo}[4]${reset} Reiniciar VPS"
+echo -e "${verde}[5]${reset} Estado del sistema"
+echo -e "${violeta}[0]${reset} Salir"
 echo
 
-# 📝 Pregunta principal
-echo -ne "${verde}Seleccione una opción:${reset} "
-read opcion
+read -p "Seleccione una opción: " opcion
 
 case $opcion in
   1)
-    echo -ne "${amarillo}👤 Nombre de usuario:${reset} "
-    read usuario
-    echo -ne "${violeta}🔑 Contraseña:${reset} "
-    read -s clave
+    echo -e "${cyan}➤ Creando usuario...${reset}"
+    read -p "Nombre de usuario: " usuario
+    read -s -p "Contraseña: " clave
     echo
-    if id "$usuario" &>/dev/null; then
-      echo -e "${rojo}⚠️  El usuario $usuario ya existe.${reset}"
-    else
-      useradd -m -s /bin/bash "$usuario"
-      echo "$usuario:$clave" | chpasswd
-      echo -e "${azul}✅ Usuario $usuario creado con éxito.${reset}"
-    fi
+    useradd -m -s /bin/bash "$usuario"
+    echo "$usuario:$clave" | chpasswd
+    echo -e "${verde}✔ Usuario $usuario creado con éxito.${reset}"
     ;;
   2)
-    echo -ne "${amarillo}🗑️ Usuario a eliminar:${reset} "
-    read usuario
-    if id "$usuario" &>/dev/null; then
-      userdel -r "$usuario"
-      echo -e "${rojo}❌ Usuario $usuario eliminado.${reset}"
-    else
-      echo -e "${rojo}⚠️  El usuario $usuario no existe.${reset}"
-    fi
+    echo -e "${amarillo}➤ Eliminando usuario...${reset}"
+    read -p "Usuario a eliminar: " usuario
+    userdel -r "$usuario"
+    echo -e "${rojo}✘ Usuario $usuario eliminado.${reset}"
     ;;
   3)
-    echo -e "${cyan}📋 Usuarios SSH creados:${reset}"
-    awk -F: '$3 >= 1000 && $7 == "/bin/bash" {print " - " $1}' /etc/passwd
+    echo -e "${azul}➤ Usuarios existentes:${reset}"
+    cut -d: -f1 /etc/passwd | less
+    ;;
+  4)
+    echo -e "${rojo}Reiniciando VPS...${reset}"
+    reboot
+    ;;
+  5)
+    echo -e "${verde}➤ Estado del sistema:${reset}"
+    uptime
+    free -h
+    df -h
     ;;
   0)
-    echo -e "${violeta}👋 Cerrando el menú...${reset}"
+    echo -e "${violeta}👋 Saliendo del menú...${reset}"
     exit 0
     ;;
   *)
-    echo -e "${rojo}⚠️  Opción no válida.${reset}"
+    echo -e "${rojo}⚠ Opción no válida.${reset}"
     ;;
 esac
 EOF
 
-# Dar permisos de ejecución
 chmod +x $SCRIPT_PATH
 
-# Crear alias global "menu"
+# ================================
+# Crear acceso global "menu"
+# ================================
 echo "#!/bin/bash
 $SCRIPT_PATH" > $INSTALL_PATH
 chmod +x $INSTALL_PATH
 
-# 🖼️ Mensaje de bienvenida al conectar por SSH
-MOTD_FILE="/etc/motd"
+# ================================
+# Configurar mensaje de bienvenida MOTD
+# ================================
 cat <<'EOM' > $MOTD_FILE
-=============================================
-🚀 Bienvenido al Servidor Burgos 🚀
-
-👉 Usa el comando: menu
-   para administrar usuarios SSH fácilmente
-=============================================
+[95m╔══════════════════════════════╗[0m
+[95m   🚀  Bienvenido a VPS BURGOS 🚀[0m
+[95m╚══════════════════════════════╝[0m
+ Soporte: [96m@Escanor_Sama18[0m
+ Fecha:   [92m$(date)[0m
 EOM
 
+# ================================
+# Hacer que el menú se ejecute al entrar
+# ================================
+echo "menu" >> /root/.bashrc
+
 echo "✅ Instalación completada."
-echo "Escribe: menu"
+echo "👉 Ahora cada vez que entres al VPS verás el mensaje de bienvenida y el MENU BURGOS"
