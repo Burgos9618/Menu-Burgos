@@ -1,6 +1,6 @@
 #!/bin/bash
 # Instalador Menu Burgos 🚀
-# Autor: Burgos & ChatGPT
+# Autor: Burgos
 
 INSTALL_PATH="/usr/local/bin/menu"
 SCRIPT_PATH="/usr/local/bin/menu_admin.sh"
@@ -36,12 +36,12 @@ usuarios_menu() {
     echo -e "${violeta}╔══════════════════════════════╗${reset}"
     echo -e "${violeta}   🔑 Gestión de Usuarios SSH   ${reset}"
     echo -e "${violeta}╚══════════════════════════════╝${reset}"
-    echo -e "${cyan}[1] ➤ Crear usuario${reset}"
-    echo -e "${amarillo}[2] ➤ Eliminar usuario${reset}"
-    echo -e "${azul}[3] ➤ Editar usuario${reset}"
-    echo -e "${verde}[4] ➤ Renovar usuario${reset}"
-    echo -e "${rojo}[5] ➤ Eliminar usuarios caducados${reset}"
-    echo -e "${violeta}[0] ⬅ Volver al menú principal${reset}"
+    echo -e "${cyan}[1]${reset} ➤ ${cyan}Crear usuario${reset}"
+    echo -e "${amarillo}[2]${reset} ➤ ${amarillo}Eliminar usuario${reset}"
+    echo -e "${azul}[3]${reset} ➤ ${azul}Editar usuario${reset}"
+    echo -e "${verde}[4]${reset} ➤ ${verde}Renovar usuario${reset}"
+    echo -e "${rojo}[5]${reset} ➤ ${rojo}Eliminar usuarios caducados${reset}"
+    echo -e "${violeta}[0]${reset} ⬅ $¨{violeta}Volver al menú principal${reset}"
     echo
     read -p "Seleccione una opción: " op
     case $op in
@@ -171,11 +171,11 @@ while true; do
   echo -e "${violeta}╔══════════════════════════════════════════╗${reset}"
   echo -e "${violeta}      🚀   MENÚ ADMINISTRADOR VPS BURGOS   🚀${reset}"
   echo -e "${violeta}╚══════════════════════════════════════════╝${reset}"
-  echo -e "${cyan}[1]${reset} 🔑 Gestión de Usuarios"
-  echo -e "${amarillo}[2]${reset} ⚙️  Gestión de Puertos"
-  echo -e "${verde}[3]${reset} 📊 Estado del sistema"
-  echo -e "${rojo}[4]${reset} 🔄 Reinicios y extras"
-  echo -e "${violeta}[0]${reset} ❌ Salir"
+  echo -e "${cyan}[1]${reset} 🔑 ${cyan}Gestión de Usuarios${reset}"
+  echo -e "${amarillo}[2]${reset} ⚙️  ${amarillo}Gestión de Puertos${reset}"
+  echo -e "${verde}[3]${reset} 📊 ${verde}Estado del sistema${reset}"
+  echo -e "${rojo}[4]${reset} 🔄 ${rojo}Reinicios y extras${reset}"
+  echo -e "${violeta}[0]${reset} ❌ ${violeta}Salir${reset}"
   echo
   read -p "Seleccione una opción: " opcion
   case $opcion in
