@@ -1,4 +1,3 @@
-
 #!/bin/bash
 # Instalador Burgos Menu actualizado
 # Autor: Burgos 🚀
@@ -31,7 +30,7 @@ echo -e "${violeta}      🚀  Ningun Sistema Es Seguro 🚀       ${reset}"
 echo -e "${violeta}╚══════════════════════════════════════════╝${reset}"
 echo
 
-# Menú con colores diferentes
+# Menú con colores
 echo -e "${cyan}[1]${reset} Crear usuario SSH"
 echo -e "${amarillo}[2]${reset} Eliminar usuario SSH"
 echo -e "${azul}[3]${reset} Listar usuarios"
@@ -40,33 +39,36 @@ echo -e "${verde}[5]${reset} Estado del sistema"
 echo -e "${violeta}[0]${reset} Salir"
 echo
 
-read -p "Seleccione una opción: " opcion
+# Pregunta colorida
+echo -ne "${cyan}Seleccione una opción: ${reset}"
+read opcion
 
 case $opcion in
   1)
     echo -e "${cyan}➤ Creando usuario...${reset}"
-    read -p "$(echo -e ${amarillo}Nombre de usuario:${reset} ) " usuario
-    read -s -p "$(echo -e ${verde}Contraseña:${reset} ) " clave
+    echo -ne "${cyan}Nombre de usuario: ${reset}"
+    read usuario
+    echo -ne "${cyan}Contraseña: ${reset}"
+    read -s clave
     echo
-    useradd -m -s /bin/bash "$usuario"
+    useradd -m -s /bin/bash "$usuario" &>/dev/null
     echo "$usuario:$clave" | chpasswd
-    echo "$usuario" >> /etc/burgos_users.txt
     echo -e "${verde}✔ Usuario $usuario creado con éxito.${reset}"
     ;;
   2)
     echo -e "${amarillo}➤ Eliminando usuario...${reset}"
-    read -p "$(echo -e ${rojo}Usuario a eliminar:${reset} ) " usuario
-    userdel -r "$usuario"
-    sed -i "/^$usuario$/d" /etc/burgos_users.txt
-    echo -e "${rojo}✘ Usuario $usuario eliminado.${reset}"
+    echo -ne "${cyan}Usuario a eliminar: ${reset}"
+    read usuario
+    userdel -r "$usuario" &>/dev/null
+    if [ $? -eq 0 ]; then
+      echo -e "${rojo}✘ Usuario $usuario eliminado.${reset}"
+    else
+      echo -e "${amarillo}⚠ El usuario no existe.${reset}"
+    fi
     ;;
   3)
-    echo -e "${azul}➤ Usuarios creados con el menú:${reset}"
-    if [[ -f /etc/burgos_users.txt ]]; then
-      cat /etc/burgos_users.txt
-    else
-      echo -e "${rojo}No hay usuarios registrados.${reset}"
-    fi
+    echo -e "${azul}➤ Usuarios SSH existentes:${reset}"
+    getent passwd {1000..60000} | cut -d: -f1
     ;;
   4)
     echo -e "${rojo}Reiniciando VPS...${reset}"
