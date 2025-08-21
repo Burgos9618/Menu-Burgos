@@ -66,16 +66,25 @@ usuarios_menu() {
          pausa ;;
       4) read -p "Usuario a renovar: " usuario
          read -p "Días adicionales: " dias
-         chage -E $(date -d "+$dias days" +%Y-%m-%d) $usuario
-         echo -e "${verde}✔ Usuario $usuario renovado.${reset}"
+         nueva_fecha=$(date -d "+$dias days" +%Y-%m-%d)
+         chage -E $nueva_fecha $usuario
+         echo -e "${verde}✔ Usuario $usuario renovado hasta $nueva_fecha.${reset}"
          pausa ;;
       5) echo -e "${rojo}➤ Eliminando usuarios caducados...${reset}"
-         for u in $(awk -F: '{print $1}' /etc/passwd); do
+         for u in $(awk -F: '{if ($3 >= 1000 && $1!="nobody") print $1}' /etc/passwd); do
            exp=$(chage -l $u | grep "Account expires" | awk -F": " '{print $2}')
            if [[ $exp != "never" && $(date -d "$exp" +%s) -lt $(date +%s) ]]; then
              userdel -r $u
              echo -e "${rojo}✘ $u eliminado por caducidad.${reset}"
            fi
+         done
+         pausa ;;
+      6) echo -e "${cyan}📋 Lista de usuarios SSH:${reset}"
+         echo -e "${amarillo}Usuario        Expira${reset}"
+         echo "----------------------------------"
+         for u in $(awk -F: '{if ($3 >= 1000 && $1!="nobody") print $1}' /etc/passwd); do
+           exp=$(chage -l $u | grep "Account expires" | awk -F": " '{print $2}')
+           printf "${verde}%-15s${reset} ${rojo}%s${reset}\n" "$u" "$exp"
          done
          pausa ;;
       0) break ;;
@@ -93,11 +102,11 @@ puertos_menu() {
     echo -e "${azul}╔══════════════════════════════╗${reset}"
     echo -e "${azul}   ⚙️  Gestión de Puertos VPS   ${reset}"
     echo -e "${azul}╚══════════════════════════════╝${reset}"
-    echo -e "${cyan}[1] ➤ Ver puertos en uso${reset}"
-    echo -e "${amarillo}[2] ➤ Cambiar puerto SSH${reset}"
-    echo -e "${verde}[3] ➤ Configurar Dropbear${reset}"
-    echo -e "${violeta}[4] ➤ Configurar Stunnel${reset}"
-    echo -e "${rojo}[0] ⬅ Volver al menú principal${reset}"
+    echo -e "${cyan}[1]${reset} ➤ ${cyan}Ver puertos en uso${reset}"
+    echo -e "${amarillo}[2]${reset} ➤ ${amarillo}Cambiar puerto SSH${reset}"
+    echo -e "${verde}[3]${reset} ➤ ${verde}Configurar Dropbear${reset}"
+    echo -e "${violeta}[4]${reset} ➤ ${violeta}Configurar Stunnel${reset}"
+    echo -e "${rojo}[0]${reset} ⬅ ${rojo}Volver al menú principal${reset}"
     echo
     read -p "Seleccione una opción: " op
     case $op in
@@ -148,9 +157,9 @@ extras_menu() {
     echo -e "${amarillo}╔══════════════════════════════╗${reset}"
     echo -e "${amarillo}   🔄 Reinicios y Utilidades   ${reset}"
     echo -e "${amarillo}╚══════════════════════════════╝${reset}"
-    echo -e "${cyan}[1]${reset} ➤ Reiniciar VPS"
-    echo -e "${verde}[2]${reset} ➤ Reiniciar servicios"
-    echo -e "${rojo}[0]${reset} ⬅ Volver al menú principal"
+    echo -e "${cyan}[1]${reset} ➤ ${cyan}Reiniciar VPS${reset}"
+    echo -e "${verde}[2]${reset} ➤ ${verde}Reiniciar servicios{reset}"
+    echo -e "${rojo}[0]${reset} ⬅ ${rojo}Volver al menú principal{reset}"
     echo
     read -p "Seleccione una opción: " op
     case $op in
