@@ -107,4 +107,3 @@ EOM
 echo "menu" >> /root/.bashrc
 
 echo "✅ Instalación completada."
-echo "👉 Ahora cada vez que entres al VPS verás el mensaje de bienvenida y el MENU BURGOS"
