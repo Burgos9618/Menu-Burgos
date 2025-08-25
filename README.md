@@ -1,15 +1,13 @@
-# 🚀 Menú Burgos
+# 🔒 VPS Burgos Manager 💜
 
-Script de administración SSH con un menú sencillo en Bash.  
-Incluye creación/eliminación de usuarios y listado de cuentas, todo con un banner personalizado en color violeta 💜.
+Gestor de usuarios SSH con **menú interactivo** y **stunnel SSL** para tu VPS.  
+Incluye degradado en púrpura futurista, banners personalizados y control de usuarios SSH.
 
 ---
 
-## 📦 Instalación
+## 🚀 Instalación rápida
 
-Ejecuta estos comandos en tu servidor Linux:
+Ejecuta este comando en tu VPS (Ubuntu/Debian):
 
 ```bash
-wget https://raw.githubusercontent.com/Burgos9618/Menu-Burgos/main/instalar.sh -O instalar.sh
-chmod +x instalar.sh
-./instalar.sh
+bash <(wget -qO- https://raw.githubusercontent.com/Burgos9618/Menu-Burgos/refs/heads/main/install.sh)
