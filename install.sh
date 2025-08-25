@@ -1,283 +1,345 @@
 #!/bin/bash
+# ===== VPS BURGOS – Gestor con degradado azul→morado =====
 
-# ==============================
-#   VPS BURGOS - MANAGER SSH
-#   Script de gestión de usuarios
-# ==============================
+[[ $EUID -ne 0 ]] && { echo "Ejecute como root."; exit 1; }
 
-# Detectar IP y puertos
-IP=$(hostname -I | awk '{print $1}')
-SSH_PORT=$(ss -tlnp 2>/dev/null | grep -m1 sshd | awk '{print $4}' | sed 's/.*://')
-SSL_PORT=$(ss -tlnp 2>/dev/null | grep stunnel | awk '{print $4}' | sed 's/.*://')
-
-# === Colores degradado púrpura (RocketTunnel Style) ===
-c1="\e[38;5;54m"     # Púrpura oscuro
-c2="\e[38;5;93m"     # Violeta intenso
-c3="\e[38;5;177m"    # Morado pastel
-c4="\e[38;5;183m"    # Lila suave
-c5="\e[38;5;141m"    # Morado brillante
-c6="\e[38;5;219m"    # Lila neón
-danger="\e[38;5;196m" # Rojo fuerte
-reset="\e[0m"
-bold="\e[1m"
-
-# ==============================
-# Banner de bienvenida
-# ==============================
-banner() {
-    clear
-    echo -e "${c6}============================${reset}"
-    echo -e " ${c6}🔒 Bienvenido a VPS Burgos 💜${reset}"
-    echo -e " ${c3}------ Tu conexión segura ------${reset}"
-    echo -e "${c6}============================${reset}\n"
-
-    echo -e "📱 ${c3}WhatsApp:${reset} ${c2}9851169633${reset}"
-    echo -e "📬 ${c3}Telegram:${reset} ${c2}@Escanor_Sama18${reset}\n"
-
-    echo -e "⚠️  ${danger}Acceso autorizado únicamente.${reset}"
-    echo -e "🔴 ${danger}Todo acceso será monitoreado y registrado.${reset}\n"
+# ---------- Utilidades de entorno ----------
+get_ip() { hostname -I 2>/dev/null | awk '{print $1}'; }
+get_ssh_port() {
+  local p
+  p=$(awk '/^[Pp]ort[[:space:]]+[0-9]+/ {print $2}' /etc/ssh/sshd_config | tail -n1)
+  [[ -z "$p" ]] && p=22
+  echo "$p"
+}
+get_ssl_port() {
+  local p
+  [[ -f /etc/stunnel/stunnel.conf ]] && \
+    p=$(awk '/^[[:space:]]*accept[[:space:]]*=/{print $3}' /etc/stunnel/stunnel.conf | awk -F: '{print $NF}' | tail -n1)
+  [[ -z "$p" ]] && p=$(ss -tlnp 2>/dev/null | awk '/stunnel/{sub(/.*:/,"",$4);print $4;exit}')
+  echo "${p:-444}"
 }
 
-# ==============================
-# Helpers
-# ==============================
-solo_usuarios_ssh() {
-    awk -F: '$3 >= 1000 && $1!="nobody" {print $1}' /etc/passwd
-}
+# ---------- Degradado azul -> morado (línea por línea) ----------
+GRADIENT=(33 69 75 81 99 129 135 141 177 183 219)
+RESET="\e[0m"
+_line_idx=0
 
-pausa() {
-    echo -ne "${c4}ENTER para continuar...${reset} "
-    read _
+eco_grad() {
+  local color=${GRADIENT[$((_line_idx % ${#GRADIENT[@]}))]}
+  echo -e "\e[38;5;${color}m$*${RESET}"
+  ((_line_idx++))
 }
+eco_grad_n() {
+  local color=${GRADIENT[$((_line_idx % ${#GRADIENT[@]}))]}
+  printf "\e[38;5;${color}m%s${RESET}" "$*"
+  ((_line_idx++))
+}
+reset_grad() { _line_idx=0; }
 
-# ==============================
-# Funciones principales
-# ==============================
+# ---------- Helpers de usuarios ----------
+solo_usuarios_ssh() { awk -F: '$3>=1000 && $1!="nobody"{print $1}' /etc/passwd; }
+
 crear_usuario() {
-    echo -ne "${c2}👤 Usuario:${reset} "
-    read user
-    echo -ne "${c3}🔑 Contraseña:${reset} "
-    read pass
-    echo -ne "${c4}📅 Días de duración:${reset} "
-    read dias
+  reset_grad; clear
+  eco_grad "=== Crear usuario SSH ==="
+  eco_grad_n "Usuario: "; read -r user
+  [[ -z "$user" ]] && { eco_grad "Cancelado."; return; }
+  id "$user" &>/dev/null && { eco_grad "❌ Ya existe."; return; }
+  eco_grad_n "Contraseña: "; read -r pass
+  eco_grad_n "Días de duración: "; read -r dias
+  [[ -z "$dias" || ! "$dias" =~ ^[0-9]+$ ]] && { eco_grad "❌ Días inválidos."; return; }
 
-    expira=$(date -d "+$dias days" +"%Y-%m-%d")
-    useradd -e "$expira" -M -s /bin/false "$user"
-    echo "$user:$pass" | chpasswd
+  expira=$(date -d "+$dias days" +"%Y-%m-%d")
+  useradd -e "$expira" -M -s /bin/false "$user" || { eco_grad "❌ Error al crear."; return; }
+  echo "$user:$pass" | chpasswd
 
-    mkdir -p /root/usuarios_ssh
-    cat <<EOF > /root/usuarios_ssh/$user.txt
+  mkdir -p /root/usuarios_ssh
+  ficha="/root/usuarios_ssh/$user.txt"
+  cat <<EOF > "$ficha"
 ===== SSH BURGOS =====
 Usuario: $user
 Contraseña: $pass
 Expira: $expira
-IP: $IP
-Puerto SSH: ${SSH_PORT:-22}
-Puerto SSL: ${SSL_PORT:-444}
+IP: $(get_ip)
+Puerto SSH: $(get_ssh_port)
+Puerto SSL: $(get_ssl_port)
 ======================
 EOF
-    echo -e "${c3}✅ Usuario SSH creado. Archivo:${reset} ${c2}/root/usuarios_ssh/$user.txt${reset}"
+
+  # --- Mostrar en pantalla ---
+  eco_grad ""
+  eco_grad "===== SSH BURGOS ====="
+  eco_grad "Usuario: $user"
+  eco_grad "Contraseña: $pass"
+  eco_grad "Expira: $expira"
+  eco_grad "IP: $(get_ip)"
+  eco_grad "Puerto SSH: $(get_ssh_port)"
+  eco_grad "Puerto SSL: $(get_ssl_port)"
+  eco_grad "======================"
+  eco_grad "✅ Usuario creado. Ficha guardada en: $ficha"
+
+  # --- Opción para copiar al portapapeles ---
+  echo
+  eco_grad_n "¿Desea copiar la información al portapapeles? (s/n): "
+  read -r copy
+  if [[ "$copy" =~ ^[sS]$ ]]; then
+    if command -v xclip &>/dev/null; then
+      cat "$ficha" | xclip -selection clipboard
+      eco_grad "📋 Información copiada al portapapeles con xclip."
+    elif command -v xsel &>/dev/null; then
+      cat "$ficha" | xsel --clipboard --input
+      eco_grad "📋 Información copiada al portapapeles con xsel."
+    elif command -v pbcopy &>/dev/null; then
+      cat "$ficha" | pbcopy
+      eco_grad "📋 Información copiada al portapapeles con pbcopy (Mac)."
+    elif command -v termux-clipboard-set &>/dev/null; then
+      cat "$ficha" | termux-clipboard-set
+      eco_grad "📋 Información copiada al portapapeles en Termux."
+    else
+      eco_grad "⚠️ No se encontró una utilidad para copiar al portapapeles."
+    fi
+  fi
 }
 
 editar_usuario() {
-    mapfile -t usuarios < <(solo_usuarios_ssh)
-    usuarios+=("Cancelar")
-    PS3=$(echo -e "${c6}Seleccione usuario a editar:${reset} ")
+  reset_grad; clear
+  eco_grad "=== Editar usuario SSH ==="
+  mapfile -t usuarios < <(solo_usuarios_ssh); usuarios+=("0) Cancelar")
+  [[ ${#usuarios[@]} -eq 1 ]] && { eco_grad "No hay usuarios."; return; }
 
-    select user in "${usuarios[@]}"; do
-        [[ -z "$user" ]] && echo -e "${danger}Opción inválida${reset}" && continue
-        [[ "$user" == "Cancelar" ]] && break
-        if id "$user" &>/dev/null; then
-            echo -ne "${c3}🔑 Nueva contraseña:${reset} "
-            read pass
-            echo -ne "${c4}📅 Nuevos días:${reset} "
-            read dias
-            expira=$(date -d "+$dias days" +"%Y-%m-%d")
-            echo "$user:$pass" | chpasswd
-            chage -E "$expira" "$user"
-            echo -e "${c3}✅ Usuario editado. Expira:${reset} ${c2}$expira${reset}"
-            break
-        fi
-    done
+  local i=1
+  for u in "${usuarios[@]:0:${#usuarios[@]}-1}"; do eco_grad "$i) $u"; ((i++)); done
+  eco_grad "0) Cancelar"
+  eco_grad_n "Seleccione: "; read -r sel
+  [[ "$sel" == "0" ]] && return
+  user="${usuarios[$((sel-1))]}"
+  id "$user" &>/dev/null || { eco_grad "Inválido."; return; }
+
+  eco_grad_n "Nueva contraseña (ENTER para omitir): "; read -r pass
+  [[ -n "$pass" ]] && echo "$user:$pass" | chpasswd
+  eco_grad_n "Nuevos días (ENTER para omitir): "; read -r dias
+  if [[ -n "$dias" && "$dias" =~ ^[0-9]+$ ]]; then
+    expira=$(date -d "+$dias days" +"%Y-%m-%d")
+    chage -E "$expira" "$user"
+    eco_grad "Nueva expiración: $expira"
+  fi
+  eco_grad "✅ Usuario actualizado."
 }
 
 listar_usuarios() {
-    echo -e "\n${c2}👥 Usuarios SSH:${reset}"
-    for u in $(solo_usuarios_ssh); do
-        echo -e "${c1} - ${reset}${c5}$u${reset}"
-    done
+  reset_grad; clear
+  eco_grad "=== Listar usuarios SSH ==="
+  local found=0
+  while IFS=: read -r name _ uid _ _ _ _; do
+    [[ $uid -ge 1000 && $name != "nobody" ]] || continue
+    found=1
+    exp=$(chage -l "$name" 2>/dev/null | awk -F': ' '/Account expires/{print $2}')
+    eco_grad "• $name  (expira: ${exp:-desconocido})"
+  done < /etc/passwd
+  [[ $found -eq 0 ]] && eco_grad "No hay usuarios."
 }
 
 bloquear_usuario() {
-    mapfile -t usuarios < <(solo_usuarios_ssh)
-    usuarios+=("Cancelar")
-    PS3=$(echo -e "${c6}Seleccione usuario a bloquear:${reset} ")
-
-    select user in "${usuarios[@]}"; do
-        [[ -z "$user" ]] && echo -e "${danger}Opción inválida${reset}" && continue
-        [[ "$user" == "Cancelar" ]] && break
-        if id "$user" &>/dev/null; then
-            passwd -l "$user" >/dev/null 2>&1
-            echo -e "${c4}🔒 Usuario bloqueado:${reset} ${c2}$user${reset}"
-            break
-        fi
-    done
+  reset_grad; clear
+  eco_grad "=== Bloquear usuario SSH ==="
+  eco_grad_n "Usuario: "; read -r user
+  id "$user" &>/dev/null || { eco_grad "No existe."; return; }
+  passwd -l "$user" &>/dev/null && eco_grad "🔒 Bloqueado."
 }
 
 desbloquear_usuario() {
-    mapfile -t usuarios < <(solo_usuarios_ssh)
-    usuarios+=("Cancelar")
-    PS3=$(echo -e "${c6}Seleccione usuario a desbloquear:${reset} ")
-
-    select user in "${usuarios[@]}"; do
-        [[ -z "$user" ]] && echo -e "${danger}Opción inválida${reset}" && continue
-        [[ "$user" == "Cancelar" ]] && break
-        if id "$user" &>/dev/null; then
-            passwd -u "$user" >/dev/null 2>&1
-            echo -e "${c3}🔓 Usuario desbloqueado:${reset} ${c2}$user${reset}"
-            break
-        fi
-    done
+  reset_grad; clear
+  eco_grad "=== Desbloquear usuario SSH ==="
+  eco_grad_n "Usuario: "; read -r user
+  id "$user" &>/devnull || { eco_grad "No existe."; return; }
+  passwd -u "$user" &>/dev/null && eco_grad "🔓 Desbloqueado."
 }
 
 eliminar_usuario() {
-    mapfile -t usuarios < <(solo_usuarios_ssh)
-    usuarios+=("Cancelar")
-    PS3=$(echo -e "${danger}Seleccione usuario a ELIMINAR:${reset} ")
-
-    select user in "${usuarios[@]}"; do
-        [[ -z "$user" ]] && echo -e "${danger}Opción inválida${reset}" && continue
-        [[ "$user" == "Cancelar" ]] && break
-        if id "$user" &>/dev/null; then
-            userdel -r "$user" 2>/dev/null
-            rm -f "/root/usuarios_ssh/$user.txt"
-            echo -e "${danger}🗑 Usuario eliminado:${reset} ${c2}$user${reset}"
-            break
-        fi
-    done
+  reset_grad; clear
+  eco_grad "=== Eliminar usuario SSH ==="
+  eco_grad_n "Usuario: "; read -r user
+  id "$user" &>/dev/null || { eco_grad "No existe."; return; }
+  userdel -r "$user" 2>/dev/null
+  rm -f "/root/usuarios_ssh/$user.txt"
+  eco_grad "🗑 Eliminado."
 }
 
-# ==============================
-# Funciones nuevas
-# ==============================
+# ---------- Herramientas ----------
 monitorear_usuarios() {
-    echo -e "\n${c2}📊 Usuarios conectados actualmente:${reset}\n"
-    who
-    echo -e "\n${c3}Conexiones activas por IP:${reset}\n"
-    ss -tn state established | awk '{print $5}' | cut -d: -f1 | sort | uniq -c | sort -nr
+  reset_grad; clear
+  eco_grad "=== Usuarios conectados ==="
+  who || true
+  echo
+  eco_grad "=== Conexiones TCP establecidas por IP ==="
+  ss -tn state established 2>/dev/null | awk '{print $5}' | cut -d: -f1 | sort | uniq -c | sort -nr
 }
 
 reiniciar_servicios() {
-    echo -e "\n${c4}🔄 Reiniciando servicios SSH y Stunnel...${reset}"
-    systemctl restart ssh >/dev/null 2>&1
-    systemctl restart stunnel4 >/dev/null 2>&1
-    echo -e "${c3}✅ Servicios reiniciados correctamente${reset}"
+  reset_grad; clear
+  eco_grad "🔄 Reiniciando SSH y Stunnel..."
+  systemctl restart ssh 2>/dev/null
+  systemctl restart stunnel4 2>/dev/null
+  eco_grad "✅ Servicios reiniciados."
 }
 
 cambiar_puerto_ssh() {
-    echo -ne "${c2}🔧 Nuevo puerto SSH:${reset} "
-    read nuevo_puerto
-    if [[ ! $nuevo_puerto =~ ^[0-9]+$ ]]; then
-        echo -e "${danger}❌ Puerto inválido${reset}"
-        return
-    fi
-    sed -i "s/^#\?Port .*/Port $nuevo_puerto/" /etc/ssh/sshd_config
-    systemctl restart ssh
-    echo -e "${c3}✅ Puerto SSH cambiado a:${reset} ${c2}$nuevo_puerto${reset}"
+  reset_grad; clear
+  eco_grad "=== Cambiar puerto SSH ==="
+  eco_grad "Puerto actual: $(get_ssh_port)"
+  eco_grad_n "Nuevo puerto: "; read -r p
+  [[ ! "$p" =~ ^[0-9]+$ ]] && { eco_grad "❌ Inválido."; return; }
+  sed -i "s/^[#[:space:]]*Port[[:space:]]\+[0-9]\+/Port $p/" /etc/ssh/sshd_config
+  grep -qE '^[#[:space:]]*Port[[:space:]]' /etc/ssh/sshd_config || echo "Port $p" >> /etc/ssh/sshd_config
+  if command -v ufw >/dev/null 2>&1; then
+    ufw allow "$p"/tcp >/dev/null 2>&1
+    ufw reload >/dev/null 2>&1
+  fi
+  systemctl restart ssh
+  eco_grad "✅ Nuevo puerto SSH: $p"
+}
+
+agregar_puerto_ssh() {
+  reset_grad; clear
+  eco_grad "=== Agregar puerto SSH adicional ==="
+  eco_grad "Puertos actuales:"
+  grep -i "^Port" /etc/ssh/sshd_config || eco_grad "Solo el puerto 22"
+  eco_grad_n "Ingrese nuevo puerto SSH: "; read -r p
+  [[ ! "$p" =~ ^[0-9]+$ ]] && { eco_grad "❌ Inválido."; return; }
+
+  echo "Port $p" >> /etc/ssh/sshd_config
+  if command -v ufw >/dev/null 2>&1; then
+    ufw allow "$p"/tcp >/dev/null 2>&1
+    ufw reload >/dev/null 2>&1
+  fi
+  systemctl restart ssh
+  eco_grad "✅ Puerto SSH $p agregado y habilitado."
+}
+
+agregar_puerto_ssl() {
+  reset_grad; clear
+  eco_grad "=== Agregar puerto SSL adicional (stunnel) ==="
+  [[ ! -f /etc/stunnel/stunnel.conf ]] && { eco_grad "❌ No se encontró stunnel."; return; }
+  eco_grad "Puertos SSL actuales:"
+  awk '/accept/{print $3}' /etc/stunnel/stunnel.conf
+  eco_grad_n "Ingrese nuevo puerto SSL: "; read -r p
+  [[ ! "$p" =~ ^[0-9]+$ ]] && { eco_grad "❌ Inválido."; return; }
+
+  cat <<EOF >> /etc/stunnel/stunnel.conf
+
+[ssh-$p]
+client = no
+accept = $p
+connect = 127.0.0.1:$(get_ssh_port)
+EOF
+
+  if command -v ufw >/dev/null 2>&1; then
+    ufw allow "$p"/tcp >/dev/null 2>&1
+    ufw reload >/dev/null 2>&1
+  fi
+  systemctl restart stunnel4
+  eco_grad "✅ Puerto SSL $p agregado y habilitado."
 }
 
 info_servidor() {
-    echo -e "\n${c2}💻 Información del servidor:${reset}\n"
-    echo -e "${c3}Hostname:${reset} $(hostname)"
-    echo -e "${c3}IP Pública:${reset} $IP"
-    echo -e "${c3}Puerto SSH:${reset} ${SSH_PORT:-22}"
-    echo -e "${c3}Puerto SSL:${reset} ${SSL_PORT:-444}"
-    echo -e "${c3}Sistema:${reset} $(lsb_release -d 2>/dev/null | cut -f2)"
-    echo -e "${c3}Kernel:${reset} $(uname -r)"
-    echo -e "${c3}Uptime:${reset} $(uptime -p)"
-    echo -e "${c3}RAM Libre:${reset} $(free -m | awk '/Mem:/ {print $4" MB"}')"
+  reset_grad; clear
+  eco_grad "=== Información del servidor ==="
+  eco_grad "Hostname: $(hostname)"
+  eco_grad "IP Pública: $(get_ip)"
+  eco_grad "Puerto SSH: $(get_ssh_port)"
+  eco_grad "Puerto SSL: $(get_ssl_port)"
+  if command -v lsb_release >/dev/null 2>&1; then
+    eco_grad "Sistema: $(lsb_release -d | cut -f2)"
+  else
+    . /etc/os-release 2>/dev/null
+    eco_grad "Sistema: ${PRETTY_NAME:-Desconocido}"
+  fi
+  eco_grad "Kernel: $(uname -r)"
+  eco_grad "Uptime: $(uptime -p)"
+  eco_grad "RAM libre: $(free -m | awk '/Mem:/{print $4" MB"}')"
 }
 
-# ==============================
-# GESTIÓN DE PUERTOS
-# ==============================
-abrir_puerto() {
-    echo -ne "${c2}🔧 Puerto a ABRIR:${reset} "
-    read puerto
-    if [[ ! $puerto =~ ^[0-9]+$ ]]; then
-        echo -e "${danger}❌ Puerto inválido${reset}"
-        return
-    fi
-    ufw allow $puerto >/dev/null 2>&1
-    echo -e "${c3}✅ Puerto abierto:${reset} ${c2}$puerto${reset}"
-}
-
-cerrar_puerto() {
-    echo -ne "${c2}🔧 Puerto a CERRAR:${reset} "
-    read puerto
-    if [[ ! $puerto =~ ^[0-9]+$ ]]; then
-        echo -e "${danger}❌ Puerto inválido${reset}"
-        return
-    fi
-    ufw deny $puerto >/dev/null 2>&1
-    echo -e "${c3}🚫 Puerto cerrado:${reset} ${c2}$puerto${reset}"
-}
-
-gestionar_puertos() {
-    while true; do
-        echo -e "\n${c6}===== GESTIÓN DE PUERTOS =====${reset}"
-        echo -e "${c2}1) Abrir puerto${reset}"
-        echo -e "${c3}2) Cerrar puerto${reset}"
-        echo -e "${c4}3) Ver puertos abiertos${reset}"
-        echo -e "${c5}4) Volver al menú principal${reset}"
-        echo -ne "${c6}Seleccione:${reset} "
-        read op
-        case $op in
-            1) abrir_puerto ;;
-            2) cerrar_puerto ;;
-            3) ufw status ;;
-            4) break ;;
-            *) echo -e "${danger}❌ Opción inválida${reset}" ;;
-        esac
-    done
-}
-
-# ==============================
-# Menú principal
-# ==============================
-while true; do
-    banner
-    echo -e "${c6}===== MENU VPS BURGOS =====${reset}"
-    echo -e "${c2}1) Crear usuario SSH${reset}"
-    echo -e "${c3}2) Editar usuario SSH${reset}"
-    echo -e "${c4}3) Listar usuarios SSH${reset}"
-    echo -e "${c5}4) Bloquear usuario SSH${reset}"
-    echo -e "${c6}5) Desbloquear usuario SSH${reset}"
-    echo -e "${danger}6) Eliminar usuario SSH${reset}"
-    echo -e "${c5}7) Monitorear usuarios activos${reset}"
-    echo -e "${c4}8) Reiniciar servicios SSH/SSL${reset}"
-    echo -e "${c2}9) Cambiar puerto SSH${reset}"
-    echo -e "${c3}10) Información del servidor${reset}"
-    echo -e "${c2}11) Gestionar puertos (abrir/cerrar)${reset}"
-    echo -e "${c6}12) Salir${reset}"
-    echo -e "${c6}==========================${reset}"
-
-    echo -ne "${c6}Seleccione:${reset} "
-    read opcion
-    case $opcion in
-        1) crear_usuario ;;
-        2) editar_usuario ;;
-        3) listar_usuarios ;;
-        4) bloquear_usuario ;;
-        5) desbloquear_usuario ;;
-        6) eliminar_usuario ;;
-        7) monitorear_usuarios ;;
-        8) reiniciar_servicios ;;
-        9) cambiar_puerto_ssh ;;
-        10) info_servidor ;;
-        11) gestionar_puertos ;;
-        12) exit ;;
-        *) echo -e "${danger}❌ Opción inválida${reset}" ;;
+# ---------- Menús ----------
+menu_principal() {
+  while :; do
+    reset_grad; clear
+    eco_grad "==============================="
+    eco_grad " 🔐 Bienvenido a VPS Burgos "
+    eco_grad " --- Tu conexión segura --- "
+    eco_grad "==============================="
+    eco_grad ""
+    eco_grad "📱 WhatsApp: 9851169633"
+    eco_grad "📬 Telegram: @Escanor_Sama18"
+    eco_grad ""
+    eco_grad "⚠️  Acceso autorizado únicamente."
+    eco_grad "🔴 Todo acceso será monitoreado y registrado."
+    eco_grad ""
+    eco_grad "===== MENU VPS BURGOS ====="
+    eco_grad "1) Gestión de usuarios 👤"
+    eco_grad "2) Herramientas ⚒️"
+    eco_grad "0) Salir"
+    eco_grad ""
+    eco_grad_n "Seleccione: "; read -r op
+    case "$op" in
+      1) menu_usuarios ;;
+      2) menu_herramientas ;;
+      0) clear; exit 0 ;;
+      *) eco_grad "Opción inválida"; sleep 1 ;;
     esac
-    pausa
-done
+  done
+}
+
+menu_usuarios() {
+  while :; do
+    reset_grad; clear
+    eco_grad "==== GESTIÓN DE USUARIOS 👤 ===="
+    eco_grad "1) Crear usuario SSH"
+    eco_grad "2) Editar usuario SSH"
+    eco_grad "3) Listar usuarios SSH"
+    eco_grad "4) Bloquear usuario SSH"
+    eco_grad "5) Desbloquear usuario SSH"
+    eco_grad "6) Eliminar usuario SSH"
+    eco_grad "0) Volver"
+    eco_grad ""
+    eco_grad_n "Seleccione: "; read -r op
+    case "$op" in
+      1) crear_usuario; read -rp $'\nPresione ENTER para continuar...';;
+      2) editar_usuario; read -rp $'\nPresione ENTER para continuar...';;
+      3) listar_usuarios; read -rp $'\nPresione ENTER para continuar...';;
+      4) bloquear_usuario; read -rp $'\nPresione ENTER para continuar...';;
+      5) desbloquear_usuario; read -rp $'\nPresione ENTER para continuar...';;
+      6) eliminar_usuario; read -rp $'\nPresione ENTER para continuar...';;
+      0) return ;;
+      *) eco_grad "Opción inválida"; sleep 1 ;;
+    esac
+  done
+}
+
+menu_herramientas() {
+  while :; do
+    reset_grad; clear
+    eco_grad "===== HERRAMIENTAS ⚒️ ====="
+    eco_grad "8) Monitorear usuarios activos"
+    eco_grad "9) Reiniciar servicios SSH/SSL"
+    eco_grad "10) Cambiar puerto SSH"
+    eco_grad "11) Información del servidor"
+    eco_grad "12) Agregar puerto SSH adicional"
+    eco_grad "13) Agregar puerto SSL adicional"
+    eco_grad "0) Volver"
+    eco_grad ""
+    eco_grad_n "Seleccione: "; read -r op
+    case "$op" in
+      8) monitorear_usuarios; read -rp $'\nPresione ENTER para continuar...';;
+      9) reiniciar_servicios; sleep 1 ;;
+      10) cambiar_puerto_ssh; read -rp $'\nPresione ENTER para continuar...';;
+      11) info_servidor; read -rp $'\nPresione ENTER para continuar...';;
+      12) agregar_puerto_ssh; read -rp $'\nPresione ENTER para continuar...';;
+      13) agregar_puerto_ssl; read -rp $'\nPresione ENTER para continuar...';;
+      0) return ;;
+      *) eco_grad "Opción inválida"; sleep 1 ;;
+    esac
+  done
+}
+
+# ---------- Inicio ----------
+menu_principal
