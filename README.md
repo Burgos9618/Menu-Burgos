@@ -21,7 +21,12 @@ Esto instalará automáticamente:
 📜 Uso del menú
 
 Una vez instalado, puedes ejecutar el menú con:
+
 menu
+# o
+Burgos
+# o
+burgos
 
 Opciones disponibles:
 	1.	Crear usuario SSH → Genera un nuevo usuario con fecha de expiración.
