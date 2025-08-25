@@ -5,7 +5,7 @@
 
 # 🔧 CONFIGURACIÓN DEL KEYSERVER (TU VPS PERSONAL)
 KEYSERVER="185.220.205.14"
-SSH_KEY="$HOME/.ssh/burgoskey"
+KEYFILE="/root/.ssh/id_rsa"   # Ruta a tu llave privada
 
 clear
 echo "======================================"
@@ -16,10 +16,10 @@ echo -n "👉 Ingrese su KEY de instalación: "
 read USER_KEY
 
 # 🚨 VALIDAR LA KEY EN EL KEYSERVER
-if ssh -i $SSH_KEY -o StrictHostKeyChecking=no root@$KEYSERVER "[ -f /root/keys/$USER_KEY.txt ]"; then
+if ssh -i $KEYFILE -o StrictHostKeyChecking=no root@$KEYSERVER "[ -f /root/keys/$USER_KEY.txt ]"; then
     echo "✅ KEY válida, comenzando instalación..."
     # 🔥 Eliminar la KEY para que no pueda reutilizarse
-    ssh -i $SSH_KEY root@$KEYSERVER "rm -f /root/keys/$USER_KEY.txt"
+    ssh -i $KEYFILE root@$KEYSERVER "rm -f /root/keys/$USER_KEY.txt"
 else
     echo "❌ KEY inválida o ya usada."
     exit 1
