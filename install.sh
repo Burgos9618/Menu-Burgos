@@ -53,7 +53,6 @@ pausa() {
 # ==============================
 # Funciones principales
 # ==============================
-
 crear_usuario() {
     echo -ne "${c2}👤 Usuario:${reset} "
     read user
@@ -161,7 +160,6 @@ eliminar_usuario() {
 # ==============================
 # Funciones nuevas
 # ==============================
-
 monitorear_usuarios() {
     echo -e "\n${c2}📊 Usuarios conectados actualmente:${reset}\n"
     who
@@ -201,6 +199,50 @@ info_servidor() {
 }
 
 # ==============================
+# GESTIÓN DE PUERTOS
+# ==============================
+abrir_puerto() {
+    echo -ne "${c2}🔧 Puerto a ABRIR:${reset} "
+    read puerto
+    if [[ ! $puerto =~ ^[0-9]+$ ]]; then
+        echo -e "${danger}❌ Puerto inválido${reset}"
+        return
+    fi
+    ufw allow $puerto >/dev/null 2>&1
+    echo -e "${c3}✅ Puerto abierto:${reset} ${c2}$puerto${reset}"
+}
+
+cerrar_puerto() {
+    echo -ne "${c2}🔧 Puerto a CERRAR:${reset} "
+    read puerto
+    if [[ ! $puerto =~ ^[0-9]+$ ]]; then
+        echo -e "${danger}❌ Puerto inválido${reset}"
+        return
+    fi
+    ufw deny $puerto >/dev/null 2>&1
+    echo -e "${c3}🚫 Puerto cerrado:${reset} ${c2}$puerto${reset}"
+}
+
+gestionar_puertos() {
+    while true; do
+        echo -e "\n${c6}===== GESTIÓN DE PUERTOS =====${reset}"
+        echo -e "${c2}1) Abrir puerto${reset}"
+        echo -e "${c3}2) Cerrar puerto${reset}"
+        echo -e "${c4}3) Ver puertos abiertos${reset}"
+        echo -e "${c5}4) Volver al menú principal${reset}"
+        echo -ne "${c6}Seleccione:${reset} "
+        read op
+        case $op in
+            1) abrir_puerto ;;
+            2) cerrar_puerto ;;
+            3) ufw status ;;
+            4) break ;;
+            *) echo -e "${danger}❌ Opción inválida${reset}" ;;
+        esac
+    done
+}
+
+# ==============================
 # Menú principal
 # ==============================
 while true; do
@@ -216,7 +258,8 @@ while true; do
     echo -e "${c4}8) Reiniciar servicios SSH/SSL${reset}"
     echo -e "${c2}9) Cambiar puerto SSH${reset}"
     echo -e "${c3}10) Información del servidor${reset}"
-    echo -e "${c6}11) Salir${reset}"
+    echo -e "${c2}11) Gestionar puertos (abrir/cerrar)${reset}"
+    echo -e "${c6}12) Salir${reset}"
     echo -e "${c6}==========================${reset}"
 
     echo -ne "${c6}Seleccione:${reset} "
@@ -232,7 +275,8 @@ while true; do
         8) reiniciar_servicios ;;
         9) cambiar_puerto_ssh ;;
         10) info_servidor ;;
-        11) exit ;;
+        11) gestionar_puertos ;;
+        12) exit ;;
         *) echo -e "${danger}❌ Opción inválida${reset}" ;;
     esac
     pausa
