@@ -4,7 +4,7 @@
 # ================================
 
 # 🔧 CONFIGURACIÓN DEL KEYSERVER (TU VPS PERSONAL)
-KEYSERVER="IP_O_DOMINIO_DE_TU_VPS_KEYSERVER"
+KEYSERVER="123.45.67.89"
 
 clear
 echo "======================================"
