@@ -151,18 +151,30 @@ desbloquear_usuario() {
   reset_grad; clear
   eco_grad "=== Desbloquear usuario SSH ==="
   eco_grad_n "Usuario: "; read -r user
-  id "$user" &>/devnull || { eco_grad "No existe."; return; }
+  id "$user" &>/dev/null || { eco_grad "No existe."; return; }
   passwd -u "$user" &>/dev/null && eco_grad "🔓 Desbloqueado."
 }
 
 eliminar_usuario() {
   reset_grad; clear
   eco_grad "=== Eliminar usuario SSH ==="
-  eco_grad_n "Usuario: "; read -r user
-  id "$user" &>/dev/null || { eco_grad "No existe."; return; }
+  mapfile -t usuarios < <(solo_usuarios_ssh); usuarios+=("0) Cancelar")
+  [[ ${#usuarios[@]} -eq 1 ]] && { eco_grad "No hay usuarios."; return; }
+
+  local i=1
+  for u in "${usuarios[@]:0:${#usuarios[@]}-1}"; do
+    eco_grad "$i) $u"
+    ((i++))
+  done
+  eco_grad "0) Cancelar"
+  eco_grad_n "Seleccione: "; read -r sel
+  [[ "$sel" == "0" ]] && return
+  user="${usuarios[$((sel-1))]}"
+  id "$user" &>/dev/null || { eco_grad "Inválido."; return; }
+
   userdel -r "$user" 2>/dev/null
   rm -f "/root/usuarios_ssh/$user.txt"
-  eco_grad "🗑 Eliminado."
+  eco_grad "🗑 Usuario $user eliminado."
 }
 
 # ---------- Herramientas ----------
@@ -199,46 +211,69 @@ cambiar_puerto_ssh() {
   eco_grad "✅ Nuevo puerto SSH: $p"
 }
 
-agregar_puerto_ssh() {
+abrir_puertos() {
   reset_grad; clear
-  eco_grad "=== Agregar puerto SSH adicional ==="
-  eco_grad "Puertos actuales:"
-  grep -i "^Port" /etc/ssh/sshd_config || eco_grad "Solo el puerto 22"
-  eco_grad_n "Ingrese nuevo puerto SSH: "; read -r p
-  [[ ! "$p" =~ ^[0-9]+$ ]] && { eco_grad "❌ Inválido."; return; }
-
-  echo "Port $p" >> /etc/ssh/sshd_config
-  if command -v ufw >/dev/null 2>&1; then
-    ufw allow "$p"/tcp >/dev/null 2>&1
-    ufw reload >/dev/null 2>&1
-  fi
-  systemctl restart ssh
-  eco_grad "✅ Puerto SSH $p agregado y habilitado."
-}
-
-agregar_puerto_ssl() {
-  reset_grad; clear
-  eco_grad "=== Agregar puerto SSL adicional (stunnel) ==="
-  [[ ! -f /etc/stunnel/stunnel.conf ]] && { eco_grad "❌ No se encontró stunnel."; return; }
-  eco_grad "Puertos SSL actuales:"
-  awk '/accept/{print $3}' /etc/stunnel/stunnel.conf
-  eco_grad_n "Ingrese nuevo puerto SSL: "; read -r p
-  [[ ! "$p" =~ ^[0-9]+$ ]] && { eco_grad "❌ Inválido."; return; }
-
-  cat <<EOF >> /etc/stunnel/stunnel.conf
-
-[ssh-$p]
-client = no
-accept = $p
-connect = 127.0.0.1:$(get_ssh_port)
-EOF
+  eco_grad "=== Abrir puertos (SSH/SSL) ==="
+  local def_ssh def_ssl ports proto
+  def_ssh=$(get_ssh_port)
+  def_ssl=$(get_ssl_port)
+  eco_grad "Detectado -> SSH: $def_ssh  |  SSL: $def_ssl"
+  eco_grad_n "Puertos a abrir (separa por espacio/coma, ENTER=$def_ssh $def_ssl): "
+  read -r ports
+  [[ -z "$ports" ]] && ports="$def_ssh $def_ssl"
+  ports=$(echo "$ports" | tr ',' ' ')
+  eco_grad_n "Protocolo [tcp/udp/ambos] (ENTER=tcp): "
+  read -r proto
+  local protos
+  case "${proto,,}" in
+    udp) protos=(udp) ;;
+    ambos|both|tcp+udp) protos=(tcp udp) ;;
+    *) protos=(tcp) ;;
+  esac
 
   if command -v ufw >/dev/null 2>&1; then
-    ufw allow "$p"/tcp >/dev/null 2>&1
+    for p in $ports; do
+      for pr in "${protos[@]}"; do
+        ufw allow "$p/$pr" >/dev/null 2>&1
+        eco_grad "UFW: permitido $p/$pr"
+      done
+    done
     ufw reload >/dev/null 2>&1
+    eco_grad "✅ Reglas aplicadas en UFW."
+  elif command -v firewall-cmd >/dev/null 2>&1; then
+    for p in $ports; do
+      for pr in "${protos[@]}"; do
+        firewall-cmd --permanent --add-port="$p/$pr" >/dev/null 2>&1
+        eco_grad "firewalld: agregado $p/$pr"
+      done
+    done
+    firewall-cmd --reload >/dev/null 2>&1
+    eco_grad "✅ Reglas aplicadas en firewalld."
+  else
+    if command -v iptables >/dev/null 2>&1; then
+      for p in $ports; do
+        for pr in "${protos[@]}"; do
+          iptables -I INPUT -p "$pr" --dport "$p" -j ACCEPT
+          eco_grad "iptables: ACCEPT $p/$pr"
+        done
+      done
+      if command -v netfilter-persistent >/dev/null 2>&1; then
+        netfilter-persistent save >/dev/null 2>&1
+        eco_grad "Reglas guardadas con netfilter-persistent."
+      fi
+      eco_grad "✅ Reglas aplicadas con iptables."
+    elif command -v nft >/dev/null 2>&1; then
+      for p in $ports; do
+        for pr in "${protos[@]}"; do
+          nft add rule inet filter input $pr dport $p accept 2>/dev/null
+          eco_grad "nftables: accept $p/$pr"
+        done
+      done
+      eco_grad "✅ Reglas aplicadas con nftables (persistencia depende de tu sistema)."
+    else
+      eco_grad "⚠️ No se detectó firewall administrable automáticamente."
+    fi
   fi
-  systemctl restart stunnel4
-  eco_grad "✅ Puerto SSL $p agregado y habilitado."
 }
 
 info_servidor() {
@@ -323,8 +358,7 @@ menu_herramientas() {
     eco_grad "9) Reiniciar servicios SSH/SSL"
     eco_grad "10) Cambiar puerto SSH"
     eco_grad "11) Información del servidor"
-    eco_grad "12) Agregar puerto SSH adicional"
-    eco_grad "13) Agregar puerto SSL adicional"
+    eco_grad "12) Abrir puertos (SSH/SSL)"
     eco_grad "0) Volver"
     eco_grad ""
     eco_grad_n "Seleccione: "; read -r op
@@ -333,8 +367,7 @@ menu_herramientas() {
       9) reiniciar_servicios; sleep 1 ;;
       10) cambiar_puerto_ssh; read -rp $'\nPresione ENTER para continuar...';;
       11) info_servidor; read -rp $'\nPresione ENTER para continuar...';;
-      12) agregar_puerto_ssh; read -rp $'\nPresione ENTER para continuar...';;
-      13) agregar_puerto_ssl; read -rp $'\nPresione ENTER para continuar...';;
+      12) abrir_puertos; read -rp $'\nPresione ENTER para continuar...';;
       0) return ;;
       *) eco_grad "Opción inválida"; sleep 1 ;;
     esac
